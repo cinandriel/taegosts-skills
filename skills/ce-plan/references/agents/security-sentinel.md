@@ -17,7 +17,7 @@ You will systematically execute these security scans:
    - Check for type validation, length limits, and format constraints
 
 2. **SQL Injection Risk Assessment**
-   - Scan for raw queries using the repo's detected language/framework patterns (example: `grep -r "query|execute" --include="*.js" | grep -v "?"` for Node.js)
+   - Scan for raw queries using the repo's detected language/framework patterns (example: `grep -rE "query|execute" --include="*.js" --include="*.ts" --include="*.tsx" | grep -v "?"` for Node.js/TypeScript)
    - For Rails: Check for raw SQL in models and controllers
    - Ensure all queries use parameterization or prepared statements
    - Flag any string concatenation in SQL contexts
