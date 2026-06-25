@@ -29,6 +29,8 @@ A systematic audit of all 12 skills found 143 mechanical steps currently perform
 | R7 | Skill-specific scripts live in `skills/<name>/scripts/` |
 | R8 | Scripts that call the GitHub API accept `--repo` and `--pr` arguments |
 | R9 | Skills reference shared scripts via relative path from repo root |
+| R10 | All scripts validate inputs and reject values containing shell metacharacters or path traversal sequences |
+| R11 | All tests follow drift-detection philosophy (see Testing section) |
 
 ## Key Technical Decisions
 
@@ -48,11 +50,32 @@ Scripts that return structured findings (lists of issues, match results) output 
 
 Instead of grepping all `docs/solutions/` files on every run, the `solutions-search.sh` script reads frontmatter from candidate files and returns structured results. Faster and more reliable than raw grep.
 
-### KTD5: Git context script is the foundation
+### KTD5: API error handling — check auth before calling
+
+All scripts that call the GitHub API must check `gh auth status` before making calls and produce a clear error message on auth failure. No retry logic needed (single-use scripts), but failures must be surfaced, not swallowed.
+
+### KTD6: Git context script is the foundation
 
 `git-context.sh` outputs a single JSON blob with branch, default_branch, dirty_files, untracked_files, recent_commits, staged_files, and has_unpushed. Every skill that currently derives git state independently consumes this instead.
 
 ## Implementation Units
+
+### Dependency Graph and Build Order
+
+```
+U5 (run-id.sh) ──────────────────────────────┐
+U2 (default-branch.sh) ──┐                    │
+                          ├── U1 (git-context.sh) ── U7 (detect-diff-scope.sh)
+                          │                    │              │
+U6 (classify-document.sh) │                    │              └── U13 (select-reviewers.sh)
+                          │                    │
+U3 (solutions-search.sh) ─┤                    │
+U8 (validate-findings-json.sh)                │
+                          │                    │
+                          └── U4 (pr-metadata.sh)
+```
+
+Build order: U5, U2 → U1 → U3, U6, U7, U8 → U4 → U13
 
 ### Tier 1: Shared Utilities (scripts/)
 
@@ -82,6 +105,8 @@ These scripts serve multiple skills. They are the foundation — skill-specific 
 
 **Consumers:** ce-work, ce-commit, ce-commit-push-pr, ce-code-review, ce-debug, verify-implementation
 
+**Note:** U1 calls U2 internally for default_branch resolution. U2 exists as a standalone script for cases that only need the branch name without the full context blob.
+
 ---
 
 #### U2: default-branch.sh — resolve default branch with fallbacks
@@ -99,7 +124,7 @@ These scripts serve multiple skills. They are the foundation — skill-specific 
 
 **Output:** Branch name on stdout (e.g., `main`)
 
-**Consumers:** ce-work, ce-commit, ce-commit-push-pr, ce-debug, verify-implementation
+**Consumers:** ce-work, ce-commit, ce-commit-push-pr, ce-code-review (via U1), ce-debug, verify-implementation
 
 ---
 
@@ -125,6 +150,10 @@ These scripts serve multiple skills. They are the foundation — skill-specific 
 ```
 
 **Consumers:** ce-work (Finding 1), ce-doc-review (Finding 8), ce-plan (learnings-researcher), ce-code-review (learnings-researcher)
+
+**Exit codes:** 0 (matches found), 1 (error), 2 (no matches found)
+
+**Excerpt bounds:** Max 200 characters per excerpt, truncated at word boundary
 
 ---
 
@@ -155,6 +184,8 @@ These scripts serve multiple skills. They are the foundation — skill-specific 
 }
 ```
 
+**Implementation notes:** `--pr` mode uses `gh pr diff --repo` and parses unified diff output. `--branch`/`--base` modes use local `git diff`. `has_migrations` checks for files matching migration path patterns. `has_tests` checks for files matching test/spec patterns.
+
 **Consumers:** ce-code-review, pr-review, pr-fix-findings
 
 ---
@@ -167,6 +198,8 @@ These scripts serve multiple skills. They are the foundation — skill-specific 
 - Create: `scripts/run-id.sh`
 
 **Output:** `20260625-143052-a1b2` (date-time-4hex)
+
+**Implementation notes:** `--pr` mode uses `gh pr diff --repo` and parses unified diff output. `--branch`/`--base` modes use local `git diff`. `has_migrations` checks for files matching migration path patterns. `has_tests` checks for files matching test/spec patterns.
 
 **Consumers:** ce-code-review, ce-compound
 
@@ -216,6 +249,8 @@ These scripts serve multiple skills. They are the foundation — skill-specific 
 }
 ```
 
+**Implementation notes:** `--pr` mode uses `gh pr diff --repo` and parses unified diff output. `--branch`/`--base` modes use local `git diff`. `has_migrations` checks for files matching migration path patterns. `has_tests` checks for files matching test/spec patterns.
+
 **Consumers:** ce-code-review
 
 ---
@@ -230,6 +265,8 @@ These scripts serve multiple skills. They are the foundation — skill-specific 
 **Input:** Findings JSON file path
 
 **Output:** Validation result (pass/fail + errors)
+
+**Implementation notes:** `--pr` mode uses `gh pr diff --repo` and parses unified diff output. `--branch`/`--base` modes use local `git diff`. `has_migrations` checks for files matching migration path patterns. `has_tests` checks for files matching test/spec patterns.
 
 **Consumers:** ce-code-review, ce-doc-review
 
@@ -257,15 +294,19 @@ These scripts serve a single skill. They may call shared scripts from Tier 1.
 
 ---
 
-#### U11: skills/ce-doc-review/scripts/check-credentials-in-configmaps.sh
+#### U11: skills/ce-doc-review/scripts/check-credentials-in-configmaps.py
 
 **Goal:** Scan ConfigMap YAML files for patterns that look like credentials.
 
 **Input:** Directory path (default: current directory)
 
-**Output:** JSON array of `{file, line, match, severity}`
+**Output:** JSON array of `{file, line, pattern_type, severity, redacted}` where matched values are masked (e.g., `password: ****`)
 
-**Patterns:** password, secret, key, token, api_key, credential (excluding comments)
+**Patterns:** password, secret, key, token, api_key, credential
+
+**Language:** Python (YAML-aware parsing to exclude comments reliably, redact matched values)
+
+**Exit codes:** 0 (credentials found), 1 (error), 2 (no credentials found)
 
 ---
 
@@ -289,13 +330,19 @@ These scripts serve a single skill. They may call shared scripts from Tier 1.
 
 ---
 
-#### U14: skills/ce-compound/scripts/detect-overlap.sh
+#### U14: skills/ce-compound/scripts/detect-overlap.py
 
 **Goal:** Given a proposed solution title and tags, search existing solutions for overlap.
 
-**Input:** `--title <string> --tags <comma-separated>`
+**Input:** `--title <string> --tags <comma-separated> --solutions-dir <path>`
 
 **Output:** JSON with `{matches: [{path, overlap_score, matching_dimensions}]}`
+
+**Language:** Python (fuzzy string matching for title similarity, tag intersection scoring)
+
+**Scoring algorithm:** (1) Read all solution frontmatter for title + tags. (2) Title similarity via substring/word overlap (0-1). (3) Tag intersection count / total unique tags (0-1). (4) Composite score = 0.6 * title_sim + 0.4 * tag_overlap. (5) Report matches with score > 0.3.
+
+**Exit codes:** 0 (matches found), 1 (error), 2 (no matches found)
 
 ---
 
@@ -329,13 +376,17 @@ These scripts serve a single skill. They may call shared scripts from Tier 1.
 
 ---
 
-#### U18: skills/pr-review/scripts/post-review.sh
+#### U18: skills/pr-review/scripts/post-review.sh [DEFERRED — write-side action]
+
+**Status:** Deferred to PR 6c (write-side automation). U18 is a write action that posts reviews to GitHub — categorically different from the read/compute scripts in this PR.
 
 **Goal:** Build and post a PR review with inline comments.
 
 **Input:** `--repo owner/repo --pr number --review-json <file>`
 
 **Output:** Review URL or error
+
+**Auth:** Uses `gh api` (handles auth internally). Does NOT accept raw token arguments.
 
 ---
 
@@ -357,13 +408,68 @@ These scripts serve a single skill. They may call shared scripts from Tier 1.
 
 ---
 
+## Consumption Pattern
+
+Skills invoke scripts via relative path from the skill directory:
+
+```bash
+# From a skill directory (e.g., skills/ce-work/):
+result=$(../../scripts/git-context.sh)
+if [ $? -eq 1 ]; then
+  echo "Script failed: $result" >&2
+fi
+```
+
+**Error handling:** Skills must check exit codes. Exit 0 = success, exit 1 = error (log and fall back to inline logic), exit 2 = no-findings (grep-based scripts, not an error). Skills should NOT halt on script failure — they fall back to the inline LLM logic the script was meant to replace.
+
 ## Scope Boundaries
 
-- **In this PR:** All 20 scripts (8 shared + 12 skill-specific)
+- **PR 6a (this PR):** Tier 1 shared utilities only (U1-U8). No dependencies on Tier 2.
+- **PR 6b (follow-up):** Tier 2 skill-specific scripts (U9-U20). Depends on Tier 1 being merged.
 - **In this PR:** Scripts directory structure and shared utility conventions
 - **Not in this PR:** Wiring scripts into skills (follow-up PR)
 - **Not in this PR:** Config personas (PR 7) or the rename (PR 8)
 - **Not in this PR:** Formal test suites — scripts are validated against homelab-k8s real data
+
+## Testing
+
+Every script has a corresponding test that validates its behavior against known inputs. Tests live in `tests/scripts/` mirroring the script directory structure.
+
+### Test structure
+
+```
+tests/
+  scripts/
+    test-git-context.sh        # tests scripts/git-context.sh
+    test-default-branch.sh     # tests scripts/default-branch.sh
+    test-solutions-search.sh   # tests scripts/solutions-search.sh
+    ...
+  skills/
+    ce-work/
+      test-detect-missing-artifacts.sh
+    ...
+```
+
+### Drift detection philosophy
+
+When a test fails, the correct response is **investigation, not reflexive repair**:
+
+1. **Read the failure.** What did the script output vs what did the test expect?
+2. **Determine the cause.** Three possibilities:
+   - **The script is wrong.** It changed behavior or has a bug. Fix the script.
+   - **The test is wrong.** The test assumed behavior that was never correct, or the test fixture is stale. Fix the test.
+   - **The world changed.** The script's input environment changed (new file format, new API response shape, new git behavior). Update both script AND test to match the new reality.
+3. **Document the decision.** The commit message must state WHY the fix targets the script, the test, or both. "Fixed the test" is not acceptable. "Test assumed exit code 2 for empty results but script convention changed to exit 0 — updated test to match" is.
+4. **Never auto-fix.** Do not run a script, see a test fail, and immediately change the test to make it pass. That defeats the purpose of drift detection.
+
+### Test conventions
+
+- Tests are bash scripts that run the target script with known inputs and assert on exit code + output structure
+- Each test has a `# Given` / `# When` / `# Then` comment structure
+- Tests use temporary directories for isolation (`mktemp -d`)
+- Tests clean up on exit (`trap cleanup EXIT`)
+- Tests that need a git repo create one in the temp dir
+- Tests that need GitHub API use mock responses (fixture files), not live API calls
 
 ## Verification
 
@@ -373,7 +479,9 @@ After all scripts are created:
 3. Verify all scripts have `--help` flags
 4. Verify all scripts exit with correct exit codes
 5. Verify output is valid JSON (for JSON-outputting scripts)
-6. Verify shared scripts are callable from skill script directories via relative path
+6. Verify shared scripts are callable from skill script directories via relative path (path resolves, not that skills invoke them)
+7. Verify every script has a corresponding test in `tests/scripts/`
+8. Run all tests and verify they pass
 
 ## Token Savings Estimate
 
