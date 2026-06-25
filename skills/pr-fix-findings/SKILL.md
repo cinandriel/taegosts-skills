@@ -85,7 +85,22 @@ Before planning fixes, list every finding with its proposed action: **fix**, **d
     ```
 - If necessary, mark the PR and/or reviewer as ready for review again
 
-### 8. Display a summary to the user
+### 8. Request re-review
+
+After pushing fixes and resolving threads, request re-review from the original reviewer(s). Do not assume they will notice the push:
+
+```bash
+gh api -X PUT repos/{owner}/{repo}/pulls/{pr_number}/requested_reviewers -f reviewers[]='{reviewer}'
+```
+
+Or use the simpler fallback:
+```bash
+gh pr edit {pr_number} --add-reviewer {reviewer}
+```
+
+This is easy to forget — if the PR shows "Changes Requested" and you have pushed fixes, the reviewer needs to know to look again.
+
+### 9. Display a summary to the user
 
 - Give a brief summary of each remediation
 - Include a table with the results:
