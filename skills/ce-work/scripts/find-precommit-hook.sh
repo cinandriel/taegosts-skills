@@ -49,7 +49,8 @@ for candidate in "${candidates[@]}"; do
 done
 
 if [[ -z "$hook_path" ]]; then
-  echo '{"hook_path":null,"scripts":[]}' >&2
+  echo "No pre-commit hook found" >&2
+  echo '{"hook_path":null,"scripts":[]}'
   exit 2
 fi
 
