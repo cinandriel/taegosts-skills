@@ -22,6 +22,8 @@ Skip areas not relevant to the document's scope.
 
 **Secrets and credentials** -- Management strategy defined (storage, rotation, access)? Risk of hardcoding, source control, or logging? Environment separation?
 
+**Credentials in non-Secret resources.** Check ConfigMaps, environment variables in Deployment specs, and inline values for credentials (passwords, API keys, tokens). ConfigMaps are stored as plaintext in etcd — any credential in a ConfigMap is a security gap. Flag when a credential appears in both a ConfigMap (plaintext) and a SealedSecret (encrypted) — the ConfigMap copy defeats the purpose of encryption.
+
 **Plan-level threat model** -- Not a full model. Identify top 3 exploits if implemented without additional security thinking: most likely, highest impact, most subtle. One sentence each plus needed mitigation.
 
 ## Confidence calibration
