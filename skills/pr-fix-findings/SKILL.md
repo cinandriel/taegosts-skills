@@ -66,10 +66,22 @@ Before planning fixes, list every finding with its proposed action: **fix**, **d
 
 ### 6. Review your remediations
 
-- For each fix you performed, answer these questions:
-  - Does it match the plan?
-  - Does it remediate the finding as stated in the review?
-    - If your planned remediation didn't match the criteria given by the reviewer, skip this question
+For each fix you performed, verify it actually landed. Do NOT assume a fix worked just because the edit command succeeded — silent failures are common.
+
+**Semantic verification:**
+- Does it match the plan?
+- Does it remediate the finding as stated in the review?
+  - If your planned remediation didn't match the criteria given by the reviewer, skip this question
+
+**Technical verification (MANDATORY for each fix):**
+1. **Re-read the file** after editing. Confirm the expected change is present in the actual file content. Python `str.replace()` silently returns the unchanged string when the pattern doesn't match — a non-match looks identical to a successful edit.
+2. **Check for control characters.** Run `cat -A <file>` on modified lines. Heredocs interpret escape sequences differently than intended — `\b` becomes a backspace character (`^H`), not a regex word boundary. `\t` and `\r` can also be mangled.
+3. **Check file permissions** after any Python file write. Python's `open('w')` strips execute bits. Run `chmod +x <script>` after modifying shell scripts with Python.
+4. **Test awk/sed on sample input** before committing. Pipe a representative snippet through the awk/sed command to verify it produces expected output. Escaped characters in heredocs often mangle regex patterns.
+5. **Run the test suite** after all fixes. Tests passing is necessary but not sufficient — the fixes could be wrong in ways the tests don't cover.
+
+If any verification step fails, fix the issue before proceeding. Do not commit and hope.
+
 - If the answer to any of those questions is "no", then repeat the process from step 3 for that finding.
   - If you have looped a particular finding 10 times, then skip it with a note that you are having trouble finding a proper remediation for the finding and that the user should review the latest remediation plan  
   

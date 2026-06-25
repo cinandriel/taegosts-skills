@@ -20,13 +20,32 @@ If no argument is provided, list open PRs and prompt the user to specify one.
 
 ## Process
 
+### Efficiency rules (MUST follow)
+
+1. **Batch API calls** — fetch all PR data in 1-2 `gh` calls, not 6+
+2. **Save the diff once** — write to `/tmp/pr-review-diff.txt` and reuse for both review and line mapping
+3. **No re-fetching** — if you already have the data (head SHA, file list, comments), do not call `gh` again for the same data
+4. **One line-number pass** — parse the saved diff to build a file→line mapping ONCE, then look up values from it
+5. **Target: ≤5 tool calls total** for steps 2-4 (1 metadata fetch, 1 diff save, 1 review post, 1-2 for code-review skill)
+
 ### 1. Ensure code-review skill is available
 
 If the `/code-review` skill is not available, stop and alert the user. Do not continue
 
-### 2. Gather the state of the pull request
+### 2. Gather the state of the pull request (batch all API calls)
 
-- Get the latest version of the pull request
+Make as few `gh` calls as possible. In a **single command**, fetch all PR metadata, comments, and reviews:
+
+```bash
+gh pr view NUMBER --json title,state,body,headRefName,baseRefName,headRefOid,author,comments,reviews,files
+```
+
+Then **save the diff to a temp file ONCE** — you will reuse it for both review and line number mapping:
+
+```bash
+gh pr diff NUMBER > /tmp/pr-review-diff.txt
+```
+
 - If you have already reviewed this particular PR:
   - View the comments and conversations from your previous comment
   - Ingest the feedback/responses. Use this information to inform your next iteration, if necessary
@@ -37,7 +56,8 @@ If the `/code-review` skill is not available, stop and alert the user. Do not co
   
 ### 3. Review the pull request
 
-- Use the `/code-review` skill to perform the review. Make sure you pass it any necessary context
+- Use the `/code-review` skill to perform the review. Pass it the saved diff file (`/tmp/pr-review-diff.txt`) so it doesn't need to re-fetch.
+- **IMPORTANT:** While reviewing, record the file path and new-file line number for each finding. Do NOT re-parse the diff later to find line numbers.
 
 ### 4. Add a review to the pull request with your findings
 
@@ -45,8 +65,19 @@ Each finding MUST be a separate inline review comment (conversation thread), not
 
 #### 4a. Gather the review metadata
 
-- Get the latest commit SHA on the PR head branch: `gh api repos/{owner}/{repo}/pulls/{number} --jq '.head.sha'`
-- Determine the file path and line number for each finding from the diff
+- The latest commit SHA should already be available from step 2's `headRefOid` field — do NOT make another API call
+- Determine the file path and line number for each finding from the **saved diff file** (`/tmp/pr-review-diff.txt`)
+
+**Line number mapping (CRITICAL for speed):** The diff line number is NOT the new-file line number. To map correctly, parse the saved diff file once to build a lookup:
+
+```bash
+awk '/^diff --git /{split($0,p," "); file=p[3]; sub(/^a\//,"",file); next}
+     /^@@ -[0-9]+,[0-9]+, [0-9]+,[0-9]+ \+[0-9]+/{split($3,a,"+"); split(a[2],b,","); line=b[1]; next}
+     /^\+/{print file ":" line; line++; next}
+     /^ /{line++}' /tmp/pr-review-diff.txt
+```
+
+This outputs `file:new-file-line` for every added line. Use it to find the correct `line` value for each inline comment. For new files (`--- /dev/null`), every `+` line is a new-file line starting from 1. For modified files, the `@@` hunk header's `+N` tells you the starting line number.
 
 #### 4b. Build the review payload
 
