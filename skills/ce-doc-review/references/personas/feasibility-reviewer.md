@@ -27,6 +27,8 @@ A requirements-classified finding from feasibility should answer: "would the pro
 
 **Architecture reality** -- Do proposed approaches conflict with the framework or stack? Does the plan assume capabilities the infrastructure doesn't have? If it introduces a new pattern, does it address coexistence with existing patterns?
 
+**NetworkPolicy selector vs. actual traffic path.** When a plan uses NetworkPolicy `namespaceSelector` to allow egress, verify the destination is actually in a Kubernetes namespace. External services (MetalLB IPs, external domains) are outside any namespace — `namespaceSelector` won't match them. Egress to external services needs port-based rules (e.g., `ports: [{protocol: TCP, port: 443}]` without a `to` selector). When a plan routes traffic through a LoadBalancer service from within the cluster, check for hairpin issues — MetalLB L2 mode silently drops traffic from a pod to a LoadBalancer IP on the same node.
+
 **Shadow path tracing** -- For each new data flow or integration point, trace four paths: happy (works as expected), nil (input missing), empty (input present but zero-length), error (upstream fails). Produce a finding for any path the plan doesn't address. Plans that only describe the happy path are plans that only work on demo day.
 
 **Dependencies** -- Are external dependencies identified? Are there implicit dependencies it doesn't acknowledge?

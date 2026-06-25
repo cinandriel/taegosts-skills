@@ -68,6 +68,18 @@ Use these signals to decide:
 
 Pass the classification result to each persona via the `{document_type}` slot in the subagent template. Personas read this and adapt their analysis accordingly.
 
+### Cross-check against repo conventions
+
+After classifying the document but before dispatching personas, extract key resource types and patterns from the document (e.g., Deployments, NetworkPolicies, cache URLs, probe configs, database extensions). For each, check `docs/solutions/` for relevant conventions:
+
+```bash
+# Example: if the document proposes a Valkey deployment
+grep -ril "valkey\|redis" docs/solutions/
+grep -ril "networkpolicy" docs/solutions/
+```
+
+Pass relevant convention excerpts to the feasibility reviewer as supplementary context. The feasibility reviewer checks: "Does the document's approach contradict any documented convention? If yes, flag it." This catches plan-vs-convention conflicts during the review phase, before implementation begins — the user doesn't have to be the one to notice the contradiction.
+
 ### Select Conditional Personas
 
 Analyze the document content to determine which conditional personas to activate. Check for these signals:
