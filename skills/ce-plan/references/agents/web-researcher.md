@@ -71,7 +71,7 @@ A short, honest digest is more useful than a padded one. Unproductive searching 
 
 Open the digest with a one-line research value assessment so the caller can weight the findings:
 
-```
+```markdown
 **Research value: high** -- [one-sentence justification]
 ```
 
