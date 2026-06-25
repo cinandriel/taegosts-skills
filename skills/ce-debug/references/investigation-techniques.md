@@ -16,7 +16,7 @@ When a bug manifests deep in the call stack, the instinct is to fix where the er
 
 **Worked example:**
 
-```
+```text
 Symptom: API returns 500 with "Cannot read property 'email' of undefined"
 Where it crashes: sendWelcomeEmail(user.email) in NotificationService
 Who called this? UserController.create() after saving the user record
@@ -28,7 +28,7 @@ The fix belongs at the origin (UserRepo.create should throw on duplicate key), n
 
 **When manual tracing stalls**, add instrumentation:
 
-```
+```text
 // Before the problematic operation
 const stack = new Error().stack;
 console.error('DEBUG [operation]:', { value, cwd: process.cwd(), stack });
@@ -214,7 +214,7 @@ When timing or concurrency is suspected:
 
 **Timing isolation.** Add deliberate delays at suspect points to widen the race window and make it reproducible:
 
-```
+```text
 // Simulate slow operation to expose race
 await new Promise(r => setTimeout(r, 100));
 ```
