@@ -79,7 +79,10 @@ Before planning fixes, list every finding with its proposed action: **fix**, **d
 - For each finding, make a brief note about what your remediation was for it.
   - If you deemed it to be an invalid finding, then include your reasoning why.
   - If there is additional context required (such as an explanation as to why your remediation doesn't meet the reviewer's criteria), make sure it is added
-- If the finding was part of a threaded conversation, mark that conversation as Resolved
+- If the finding was part of a threaded conversation, mark that conversation as Resolved using the GraphQL API:
+    ```bash
+    gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "THREAD_ID"}) { thread { isResolved } } }'
+    ```
 - If necessary, mark the PR and/or reviewer as ready for review again
 
 ### 8. Display a summary to the user
