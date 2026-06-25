@@ -56,7 +56,7 @@ All scripts that call the GitHub API must check `gh auth status` before making c
 
 ### KTD6: Git context script is the foundation
 
-`git-context.sh` outputs a single JSON blob with branch, default_branch, dirty_files, untracked_files, recent_commits, staged_files, and has_unpushed. Every skill that currently derives git state independently consumes this instead.
+`git-context.sh` outputs a single JSON blob with current_branch, default_branch, is_detached, dirty_files, untracked_files, staged_files, recent_commits, has_unpushed, and repo_root. Every skill that currently derives git state independently consumes this instead.
 
 ## Implementation Units
 
@@ -199,8 +199,6 @@ These scripts serve multiple skills. They are the foundation — skill-specific 
 
 **Output:** `20260625-143052-a1b2` (date-time-4hex)
 
-**Implementation notes:** `--pr` mode uses `gh pr diff --repo` and parses unified diff output. `--branch`/`--base` modes use local `git diff`. `has_migrations` checks for files matching migration path patterns. `has_tests` checks for files matching test/spec patterns.
-
 **Consumers:** ce-code-review, ce-compound
 
 ---
@@ -266,8 +264,6 @@ These scripts serve multiple skills. They are the foundation — skill-specific 
 
 **Output:** Validation result (pass/fail + errors)
 
-**Implementation notes:** `--pr` mode uses `gh pr diff --repo` and parses unified diff output. `--branch`/`--base` modes use local `git diff`. `has_migrations` checks for files matching migration path patterns. `has_tests` checks for files matching test/spec patterns.
-
 **Consumers:** ce-code-review, ce-doc-review
 
 ---
@@ -282,7 +278,7 @@ These scripts serve a single skill. They may call shared scripts from Tier 1.
 
 **Input:** `--plan-files <file> --reference-dir <path>`
 
-**Output:** JSON array of `{file, status}` where status is `missing` or `present`
+**Output:** JSON array of `{file, status}` where status is `missing` (in reference but not in plan) or `in_plan` (in both). Only `missing` files require action.
 
 ---
 
