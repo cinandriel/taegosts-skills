@@ -1,6 +1,6 @@
 ---
 name: do-work-loop
-description: "Run ce-work and verify-implementation in a loop until the plan is fully satisfied. The central implementation loop for all plan-based work."
+description: "Run ce-work and verify-implementation in a loop until the plan is fully satisfied. Requires a plan file path. The central implementation loop for all plan-based work."
 user_invocable: true
 argument-hint: "[plan doc path or description of work]"
 ---
