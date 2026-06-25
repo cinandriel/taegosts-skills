@@ -100,6 +100,11 @@ gh pr edit {pr_number} --add-reviewer {reviewer}
 
 This is easy to forget — if the PR shows "Changes Requested" and you have pushed fixes, the reviewer needs to know to look again.
 
+**Permission fallback:** If the bot account does not have write access to the main repo (external contributor), the review request API will return 404 or permission denied. In that case, post a comment instead:
+```bash
+gh pr comment {pr_number} --body "All review findings addressed and resolved. Ready for re-review."
+```
+
 ### 9. Display a summary to the user
 
 - Give a brief summary of each remediation
