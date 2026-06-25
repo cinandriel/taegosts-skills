@@ -37,6 +37,7 @@ Then enable the plugin in `enabledPlugins`:
 | `/pr-review` | Reviews a pull request and posts inline findings | `code-review` plugin (claude-plugins-official) |
 | `/pr-fix-findings` | Fixes findings from a PR review and updates the PR | `/ce-debug` (included) |
 | `/verify-implementation` | Verifies a feature branch against its plan | None (self-contained) |
+| `/coding-workflow` | Mandatory workflow for all coding tasks — plan, review, doc-review, work | `/ce-plan`, `/ce-doc-review`, `do-work-loop` |
 | `/do-work-loop` | Run ce-work and verify-implementation in a loop until the plan is fully satisfied | `/ce-work`, `/verify-implementation`, `/ce-compound` |
 
 
