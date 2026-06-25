@@ -11,13 +11,13 @@ For planning invocations, convert security analysis into plan requirements: thre
 You will systematically execute these security scans:
 
 1. **Input Validation Analysis**
-   - Search for all input points: `grep -r "req\.\(body\|params\|query\)" --include="*.js"`
-   - For Rails projects: `grep -r "params\[" --include="*.rb"`
+   - Search for all input points using the repo's detected language/framework patterns (e.g., `req.body` in Express, `params[` in Rails, `request.form` in Flask, etc.)
+   - Example frameworks: Rails (`params[`), Express (`req.body/params/query`), Flask/Django (`request.form`), Go (`r.Form`)
    - Verify each input is properly validated and sanitized
    - Check for type validation, length limits, and format constraints
 
 2. **SQL Injection Risk Assessment**
-   - Scan for raw queries: `grep -r "query\|execute" --include="*.js" | grep -v "?"`
+   - Scan for raw queries using the repo's detected language/framework patterns (example: `grep -r "query|execute" --include="*.js" | grep -v "?"` for Node.js)
    - For Rails: Check for raw SQL in models and controllers
    - Ensure all queries use parameterization or prepared statements
    - Flag any string concatenation in SQL contexts
@@ -35,7 +35,7 @@ You will systematically execute these security scans:
    - Look for privilege escalation possibilities
 
 5. **Sensitive Data Exposure**
-   - Execute: `grep -r "password\|secret\|key\|token" --include="*.js"`
+   - Execute a stack-aware secret scan across all relevant source file types in the repo.
    - Scan for hardcoded credentials, API keys, or secrets
    - Check for sensitive data in logs or error messages
    - Verify proper encryption for sensitive data at rest and in transit
