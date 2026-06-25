@@ -35,8 +35,24 @@ Then enable the plugin in `enabledPlugins`:
 | Skill | Description | Dependencies |
 |-------|-------------|-------------|
 | `/pr-review` | Reviews a pull request and posts inline findings | `code-review` plugin (claude-plugins-official) |
-| `/pr-fix-findings` | Fixes findings from a PR review and updates the PR | Compound Engineering plugin (`/ce-debug`) |
+| `/pr-fix-findings` | Fixes findings from a PR review and updates the PR | `/ce-debug` (included) |
 | `/verify-implementation` | Verifies a feature branch against its plan | None (self-contained) |
+
+### Compound Engineering Skills (Extracted)
+
+These 9 skills were extracted from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) for customization. See [docs/solutions/tooling-decisions/ce-skills-extraction.md](docs/solutions/tooling-decisions/ce-skills-extraction.md) for full context.
+
+| Skill | Description | Dependencies |
+|-------|-------------|-------------|
+| `/ce-work` | Plan execution and implementation | ce-plan, ce-debug |
+| `/ce-plan` | Planning and architecture | ce-brainstorm |
+| `/ce-doc-review` | Document review with persona lenses | None |
+| `/ce-code-review` | Code review with dynamic personas | None |
+| `/ce-compound` | Solution documentation capture | None (standalone) |
+| `/ce-debug` | Debugging workflow | None |
+| `/ce-brainstorm` | Requirements brainstorming | None |
+| `/ce-commit` | Commit workflow | None |
+| `/ce-commit-push-pr` | Commit + PR creation | None |
 
 ## Usage
 
@@ -64,7 +80,7 @@ Validates findings from a PR review, fixes valid issues, and updates the PR with
 /pr-fix-findings 1
 ```
 
-If no argument is provided, lists open PRs and prompts you to pick one. Requires the Compound Engineering plugin (`/ce-debug`) to be installed.
+If no argument is provided, lists open PRs and prompts you to pick one. Uses `/ce-debug` (now included in this repo).
 
 **What to expect:** The skill reviews all open conversations on the PR, validates each finding, presents proposed actions (fix / decline / needs input) for your approval, then uses `/ce-debug` to implement fixes. It ends with a summary table and verdict.
 
@@ -86,7 +102,7 @@ If no argument is provided, lists available plans in `docs/plans/` and prompts y
 
 Some skills depend on other Claude Code plugins:
 
-- **Compound Engineering plugin** — required by `/pr-fix-findings` (provides `/ce-debug`). Install from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin).
+- **Compound Engineering skills** — `/pr-fix-findings` uses `/ce-debug`, which is now included in this repo (extracted from EveryInc).
 - **code-review plugin** — required by `/pr-review` (provides `/code-review`). Install from claude-plugins-official marketplace.
 
 `/verify-implementation` has no external plugin dependencies.
@@ -126,21 +142,39 @@ Some skills depend on other Claude Code plugins:
 ```
 taegosts-skills/
 ├── .claude-plugin/
-│   └── marketplace.json      # Plugin manifest — tells Claude Code this repo is a plugin
+│   └── marketplace.json      # Plugin manifest
 ├── skills/
 │   ├── pr-review/
-│   │   └── SKILL.md           # Skill definition for /pr-review
+│   │   └── SKILL.md
 │   ├── pr-fix-findings/
-│   │   └── SKILL.md           # Skill definition for /pr-fix-findings
-│   └── verify-implementation/
-│       └── SKILL.md           # Skill definition for /verify-implementation
+│   │   └── SKILL.md
+│   ├── verify-implementation/
+│   │   └── SKILL.md
+│   ├── ce-work/
+│   │   └── SKILL.md          # Plan execution
+│   ├── ce-plan/
+│   │   └── SKILL.md          # Planning and architecture
+│   ├── ce-doc-review/
+│   │   └── SKILL.md          # Document review
+│   ├── ce-code-review/
+│   │   └── SKILL.md          # Code review
+│   ├── ce-compound/
+│   │   └── SKILL.md          # Solution capture
+│   ├── ce-debug/
+│   │   └── SKILL.md          # Debugging workflow
+│   ├── ce-brainstorm/
+│   │   └── SKILL.md          # Requirements brainstorming
+│   ├── ce-commit/
+│   │   └── SKILL.md          # Commit workflow
+│   └── ce-commit-push-pr/
+│       └── SKILL.md          # Commit + PR creation
 ├── docs/
 │   ├── brainstorms/           # Requirements and idea exploration
 │   ├── plans/                 # Implementation plans with status tracking
 │   └── solutions/
 │       └── tooling-decisions/ # Captured learnings and technical decisions
-├── README.md                  # This file
-├── STRATEGY.md                # Product strategy
+├── README.md
+├── STRATEGY.md
 └── LICENSE
 ```
 
