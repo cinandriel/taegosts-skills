@@ -92,7 +92,7 @@ fi
 scripts_json="["
 for i in "${!scripts[@]}"; do
   [[ $i -gt 0 ]] && scripts_json+=","
-  scripts_json+="\"${scripts[$i]}\""
+    _s="${scripts[$i]}"; _s="${_s//\\/\\\\}"; _s="${_s//\"/\\\"}"; scripts_json+="\"${_s}\""
 done
 scripts_json+="]"
 

@@ -67,7 +67,7 @@ first=true
 # Deduplicate rationale_parts
 readarray -t rationale_unique < <(printf "%s
 " "${rationale_parts[@]}" | sort -u)
-for r in "${rationale_unique[@]}" "${rationale_parts[@]}"; do
+for r in "${rationale_unique[@]}"; do
   [[ -z "$r" ]] && continue
   [[ "$first" == "true" ]] && first=false || rationale_json+=","
   rationale_json+="$r"

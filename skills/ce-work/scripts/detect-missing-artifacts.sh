@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     *)
-      echo '{"error":"unknown argument"}' &>2
+      echo '{"error":"unknown argument"}' >&2
       exit 1
       ;;
   esac
