@@ -68,7 +68,20 @@ sync_skills() {
         local dest_skill="$dest/$skill_name"
 
         if $DRY_RUN; then
-            if [[ ! -d "$dest_skill" ]] || ! diff -rq "$skill_dir" "$dest_skill" >/dev/null 2>&1; then
+            local needs_sync=false
+            if [[ ! -d "$dest_skill" ]]; then
+                needs_sync=true
+            else
+                # Compare only files that exist in source
+                while IFS= read -r src_file; do
+                    local rel="${src_file#$skill_dir}"
+                    if [[ ! -f "$dest_skill/$rel" ]] || ! diff -q "$src_file" "$dest_skill/$rel" >/dev/null 2>&1; then
+                        needs_sync=true
+                        break
+                    fi
+                done < <(find "$skill_dir" -type f)
+            fi
+            if $needs_sync; then
                 echo "  [DRY RUN] Would sync: $skill_name"
                 synced=$((synced + 1))
             else
@@ -76,7 +89,20 @@ sync_skills() {
             fi
         else
             mkdir -p "$dest_skill"
-            if ! diff -rq "$skill_dir" "$dest_skill" >/dev/null 2>&1; then
+            local needs_sync=false
+            if [[ ! -d "$dest_skill" ]]; then
+                needs_sync=true
+            else
+                # Compare only files that exist in source
+                while IFS= read -r src_file; do
+                    local rel="${src_file#$skill_dir}"
+                    if [[ ! -f "$dest_skill/$rel" ]] || ! diff -q "$src_file" "$dest_skill/$rel" >/dev/null 2>&1; then
+                        needs_sync=true
+                        break
+                    fi
+                done < <(find "$skill_dir" -type f)
+            fi
+            if $needs_sync; then
                 cp -r "$skill_dir/." "$dest_skill/"
                 echo "  synced: $skill_name"
                 synced=$((synced + 1))
@@ -113,7 +139,7 @@ sync_files() {
 
         if $DRY_RUN; then
             if [[ ! -f "$dest_file" ]] || ! diff -q "$src_file" "$dest_file" >/dev/null 2>&1; then
-                echo "  [DRY RUN] Would sync: $filename"
+                echo "  [$label] [DRY RUN] Would sync: $filename"
                 synced=$((synced + 1))
             else
                 up_to_date=$((up_to_date + 1))
@@ -121,7 +147,7 @@ sync_files() {
         else
             if [[ ! -f "$dest_file" ]] || ! diff -q "$src_file" "$dest_file" >/dev/null 2>&1; then
                 cp "$src_file" "$dest_file"
-                echo "  synced: $filename"
+                echo "  [$label] synced: $filename"
                 synced=$((synced + 1))
                 CHANGED=$((CHANGED + 1))
             else

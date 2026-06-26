@@ -77,7 +77,7 @@ else
 fi
 
 # Test 8: Clone is on main branch
-cd "$HERMES_HOME/taegosts-skills"
+cd "$HERMES_HOME/taegosts-skills" || { fail "cd to clone dir failed"; return 1; }
 branch=$(git branch --show-current)
 if [[ "$branch" == "main" ]]; then
     pass "clone is on main branch"
@@ -89,7 +89,7 @@ fi
 # Create a fake skill that isn't in the repo
 mkdir -p "$HERMES_HOME/skills/fake-external-skill"
 echo "not from repo" > "$HERMES_HOME/skills/fake-external-skill/SKILL.md"
-HERMES_HOME="$HERMES_HOME" bash "$SYNC_SCRIPT" 2>&1 >/dev/null
+HERMES_HOME="$HERMES_HOME" bash "$SYNC_SCRIPT" >/dev/null 2>&1
 if [[ -f "$HERMES_HOME/skills/fake-external-skill/SKILL.md" ]]; then
     pass "preserves non-repo skills"
 else

@@ -28,8 +28,8 @@ Before any work, determine which repository the PR lives in. **Do NOT guess or l
 
 1. If the user provided `owner/repo` in the invocation, use it directly.
 2. If the current directory is a git repository, try `gh pr view {number}` in CWD.
-3. If neither works, **ask the user once** which repo. Do not list repos, do not check forks, do not search.
-4. As a fallback, check session memory for recent PR/repo context before asking.
+3. If neither works, check session memory for recent PR/repo context.
+4. If still unresolved, **ask the user once** which repo. Do not list repos, do not check forks, do not search.
 
 Store the resolved `owner/repo` for all subsequent `gh` commands using `-R {owner}/{repo}`.
 
