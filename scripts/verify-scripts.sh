@@ -14,7 +14,7 @@
 #
 # Exit codes: 0 (all pass), 1 (one or more failures)
 
-set -euo pipefail
+set -eo pipefail
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: verify-scripts.sh [dir|--file path|--all]"
@@ -27,34 +27,45 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 fi
 
 total_files=0
-total_failures=0
 failures=()
 
 check_file() {
   local f="$1"
-  local name=$(basename "$f")
+  local name
+  name=$(basename "$f")
   local file_failures=0
+  local is_supported=false
 
   if [[ "$f" == *.sh ]]; then
-    # bash -n syntax check
+    is_supported=true
     if ! bash -n "$f" 2>/dev/null; then
       failures+=("$name: bash syntax error")
       file_failures=$((file_failures + 1))
     fi
   elif [[ "$f" == *.py ]]; then
-    # Python syntax check
+    is_supported=true
     if ! python3 -m py_compile "$f" 2>/dev/null; then
       failures+=("$name: Python syntax error")
       file_failures=$((file_failures + 1))
     fi
-  else
-    # Unsupported extension — skip
-    return
   fi
 
-  # Control character check (both .sh and .py)
-  # cat -A outputs caret notation (^A for \x01, ^H for \x08, etc.)
-  if cat -A "$f" | grep -qE '\^[A-H\]'; then
+  # Skip remaining checks for unsupported extensions
+  if [[ "$is_supported" != "true" ]]; then
+    return 0
+  fi
+
+  # Control character check (portable — no grep -P)
+  if ! python3 -c "
+import sys
+with open(sys.argv[1], 'rb') as f:
+    data = f.read()
+for b in data:
+    if b in (0x09, 0x0a, 0x0d):
+        continue
+    if 0x00 <= b <= 0x1f or b == 0x7f:
+        sys.exit(1)
+" "$f" 2>/dev/null; then
     failures+=("$name: control characters found")
     file_failures=$((file_failures + 1))
   fi
@@ -71,19 +82,24 @@ check_file() {
     file_failures=$((file_failures + 1))
   fi
 
-  total_files=$((total_files + 1))
-  total_failures=$((total_failures + file_failures))
+  # Only count as passed if no failures
+  if [[ $file_failures -eq 0 ]]; then
+    total_files=$((total_files + 1))
+  fi
 }
 
 # Determine what to check
 if [[ "${1:-}" == "--all" ]]; then
-  # Use script location as repo root, not CWD
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
   files=()
-  [[ -d "$REPO_ROOT/scripts" ]] && while IFS= read -r f; do files+=("$f"); done < <(find "$REPO_ROOT/scripts" -name "*.sh" -o -name "*.py" | sort)
-  [[ -d "$REPO_ROOT/skills" ]] && while IFS= read -r f; do files+=("$f"); done < <(find "$REPO_ROOT/skills" -path "*/scripts/*.sh" -o -path "*/scripts/*.py" | sort)
+  if [[ -d "$REPO_ROOT/scripts" ]]; then
+    while IFS= read -r f; do files+=("$f"); done < <(find "$REPO_ROOT/scripts" \( -name "*.sh" -o -name "*.py" \) | sort)
+  fi
+  if [[ -d "$REPO_ROOT/skills" ]]; then
+    while IFS= read -r f; do files+=("$f"); done < <(find "$REPO_ROOT/skills" \( -path "*/scripts/*.sh" -o -path "*/scripts/*.py" \) | sort)
+  fi
 elif [[ "${1:-}" == "--file" ]]; then
   files=("$2")
 elif [[ -d "${1:-.}" ]]; then
@@ -101,7 +117,7 @@ for f in "${files[@]}"; do
 done
 
 echo ""
-echo "=== Results: $total_files files checked, ${#failures[@]} failures ==="
+echo "=== Results: $total_files passed, ${#failures[@]} failures ==="
 
 if [[ ${#failures[@]} -gt 0 ]]; then
   for f in "${failures[@]}"; do
