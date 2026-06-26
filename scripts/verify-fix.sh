@@ -6,8 +6,7 @@
 #   verify-fix.sh --file path --should-contain "text"       # must be present
 #   verify-fix.sh --file path --should-not-contain "text"   # must be absent
 #   verify-fix.sh --file path --should-match "regex"        # regex match
-#   verify-fix.sh --file path --line N --should-contain "text"  # specific line
-#   verify-fix.sh --file path --no-control-chars            # cat -A check
+#   verify-fix.sh --file path --no-control-chars            # control char check
 #   verify-fix.sh --file path --valid-bash                  # bash -n syntax check
 #   verify-fix.sh --file path --valid-json                  # python3 -m json.tool
 #   verify-fix.sh --file path --is-executable               # chmod +x check
@@ -26,8 +25,7 @@ usage() {
   echo "  --should-contain TEXT      File must contain TEXT"
   echo "  --should-not-contain TEXT  File must NOT contain TEXT"
   echo "  --should-match REGEX       File must match REGEX"
-  echo "  --line N --should-contain T  Line N must contain T"
-  echo "  --no-control-chars         No control characters (cat -A check)"
+  echo "  --no-control-chars         No control characters"
   echo "  --valid-bash               bash -n syntax check"
   echo "  --valid-json               python3 -m json.tool check"
   echo "  --is-executable            File must be executable"
@@ -41,12 +39,10 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 fi
 
 filepath=""
-line_num=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --file) filepath="$2"; shift 2 ;;
-    --line) line_num="$2"; shift 2 ;;
     --should-contain)
       text="$2"
       if ! grep -qF "$text" "$filepath" 2>/dev/null; then
@@ -66,7 +62,9 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2 ;;
     --no-control-chars)
-      if cat -A "$filepath" | grep -qP '[\x00-\x08\x0b\x0c\x0e-\x1f]'; then
+      # cat -A outputs caret notation (^A for \x01, ^H for \x08, etc.)
+      # Search for caret-notation control chars, not raw bytes
+      if cat -A "$filepath" | grep -qE '\^[A-H\]'; then
         failures+=("no-control-chars: control characters found in $filepath")
       fi
       shift ;;
@@ -85,15 +83,13 @@ while [[ $# -gt 0 ]]; do
         failures+=("is-executable: $filepath is not executable")
       fi
       shift ;;
-    *) shift ;;
+    *)
+      echo "verify-fix.sh: unknown flag '$1'" >&2
+      echo "Run 'verify-fix.sh --help' for usage" >&2
+      exit 1
+      ;;
   esac
 done
-
-# Handle --line with --should-contain
-if [[ -n "$line_num" ]]; then
-  # Already handled above if --should-contain was after --line
-  :
-fi
 
 if [[ ${#failures[@]} -eq 0 ]]; then
   echo "PASS: all checks passed for $filepath"

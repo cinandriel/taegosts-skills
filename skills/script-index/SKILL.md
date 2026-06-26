@@ -13,7 +13,11 @@ triggers:
 
 **These scripts exist so you don't have to figure things out. USE THEM.**
 
-Before doing ANY coding work, run: `export PATH="/tmp/taegosts-skills-fork/scripts:$PATH"`
+Before doing ANY coding work, run:
+```bash
+SKILL_DIR="$(cd "$(dirname "$(find . -name "script-index" -path "*/skills/*" -type d | head -1)")" && pwd)"
+export PATH="$SKILL_DIR/../scripts:$SKILL_DIR/../skills/*/scripts:$PATH"
+```
 
 ## Situation Routing Table
 
