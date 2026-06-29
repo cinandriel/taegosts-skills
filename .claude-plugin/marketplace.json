@@ -1,15 +1,15 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "taegosts-skills",
-  "description": "Custom Claude Code skills for PR review, PR fix, and implementation verification.",
+  "description": "Compound engineering skills for Claude Code — planning, review, debugging, commit workflows, and more.",
   "owner": {
-    "name": "Mike Wheway",
+    "name": "Taegost",
     "url": "https://github.com/Taegost"
   },
   "plugins": [
     {
       "name": "taegosts-skills",
-      "description": "Custom skills for PR review, PR fix findings, and implementation verification.",
+      "description": "Compound engineering skills: ce-plan, ce-work, ce-doc-review, ce-code-review, ce-debug, ce-commit, and more.",
       "source": "./",
       "category": "workflow"
     }
